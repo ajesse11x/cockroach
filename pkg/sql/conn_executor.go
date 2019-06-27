@@ -1182,6 +1182,7 @@ func (ex *connExecutor) execCmd(ctx context.Context) error {
 	var payload fsm.EventPayload
 	var res ResultBase
 
+	fmt.Printf("CMD %T\n", cmd)
 	switch tcmd := cmd.(type) {
 	case ExecStmt:
 		if tcmd.AST == nil {
@@ -1201,7 +1202,7 @@ func (ex *connExecutor) execCmd(ctx context.Context) error {
 		ex.phaseTimes[sessionEndParse] = tcmd.ParseEnd
 
 		stmtCtx := withStatement(ctx, ex.curStmt)
-		ev, payload, err = ex.execStmt(stmtCtx, curStmt, stmtRes, nil /* pinfo */)
+		ev, payload, err = ex.execStmt(stmtCtx, curStmt, stmtRes, nil /* portal */)
 		if err != nil {
 			return err
 		}
@@ -1228,14 +1229,6 @@ func (ex *connExecutor) execCmd(ctx context.Context) error {
 		}
 		ex.curStmt = portal.Stmt.AST
 
-		pinfo := &tree.PlaceholderInfo{
-			PlaceholderTypesInfo: tree.PlaceholderTypesInfo{
-				TypeHints: portal.Stmt.TypeHints,
-				Types:     portal.Stmt.Types,
-			},
-			Values: portal.Qargs,
-		}
-
 		ex.phaseTimes[sessionQueryReceived] = tcmd.TimeReceived
 		// When parsing has been done earlier, via a separate parse
 		// message, it is not any more part of the statistics collected
@@ -1260,7 +1253,7 @@ func (ex *connExecutor) execCmd(ctx context.Context) error {
 			AnonymizedStr: portal.Stmt.AnonymizedStr,
 		}
 		stmtCtx := withStatement(ctx, ex.curStmt)
-		ev, payload, err = ex.execStmt(stmtCtx, curStmt, stmtRes, pinfo)
+		ev, payload, err = ex.execStmt(stmtCtx, curStmt, stmtRes, portal)
 		if err != nil {
 			return err
 		}

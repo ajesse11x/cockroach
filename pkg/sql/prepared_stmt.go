@@ -116,6 +116,10 @@ type PreparedPortal struct {
 	refCount int
 
 	memAcc mon.BoundAccount
+
+	// executeRows is a chan where the receiving go routine is
+	executeRows chan int
+	executeDone chan bool
 }
 
 // newPreparedPortal creates a new PreparedPortal.
@@ -130,11 +134,13 @@ func (ex *connExecutor) newPreparedPortal(
 	outFormats []pgwirebase.FormatCode,
 ) (*PreparedPortal, error) {
 	portal := &PreparedPortal{
-		Stmt:       stmt,
-		Qargs:      qargs,
-		OutFormats: outFormats,
-		memAcc:     ex.sessionMon.MakeBoundAccount(),
-		refCount:   1,
+		Stmt:        stmt,
+		Qargs:       qargs,
+		OutFormats:  outFormats,
+		memAcc:      ex.sessionMon.MakeBoundAccount(),
+		refCount:    1,
+		executeRows: make(chan int),
+		executeDone: make(chan bool),
 	}
 	sz := int64(uintptr(len(name)) + unsafe.Sizeof(*portal))
 	if err := portal.memAcc.Grow(ctx, sz); err != nil {
@@ -161,5 +167,7 @@ func (p *PreparedPortal) decRef(ctx context.Context) {
 	if p.refCount == 0 {
 		p.memAcc.Close(ctx)
 		p.Stmt.decRef(ctx)
+		close(p.executeRows)
+		close(p.executeDone)
 	}
 }

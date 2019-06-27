@@ -61,7 +61,7 @@ var errSavepointNotUsed = pgerror.Newf(
 // pinfo: The values to use for the statement's placeholders. If nil is passed,
 // 	 then the statement cannot have any placeholder.
 func (ex *connExecutor) execStmt(
-	ctx context.Context, stmt Statement, res RestrictedCommandResult, pinfo *tree.PlaceholderInfo,
+	ctx context.Context, stmt Statement, res RestrictedCommandResult, portal *PreparedPortal,
 ) (fsm.Event, fsm.EventPayload, error) {
 	if log.V(2) || logStatementsExecuteEnabled.Get(&ex.server.cfg.Settings.SV) ||
 		log.HasSpanOrEvent(ctx) {
@@ -93,10 +93,10 @@ func (ex *connExecutor) execStmt(
 				"stmt.anonymized", stmt.AnonymizedStr,
 			)
 			pprof.Do(ctx, labels, func(ctx context.Context) {
-				ev, payload, err = ex.execStmtInOpenState(ctx, stmt, pinfo, res)
+				ev, payload, err = ex.execStmtInOpenState(ctx, stmt, portal, res)
 			})
 		} else {
-			ev, payload, err = ex.execStmtInOpenState(ctx, stmt, pinfo, res)
+			ev, payload, err = ex.execStmtInOpenState(ctx, stmt, portal, res)
 		}
 		switch ev.(type) {
 		case eventNonRetriableErr:
@@ -131,7 +131,7 @@ func (ex *connExecutor) recordFailure() {
 //
 // The returned event can be nil if no state transition is required.
 func (ex *connExecutor) execStmtInOpenState(
-	ctx context.Context, stmt Statement, pinfo *tree.PlaceholderInfo, res RestrictedCommandResult,
+	ctx context.Context, stmt Statement, portal *PreparedPortal, res RestrictedCommandResult,
 ) (retEv fsm.Event, retPayload fsm.EventPayload, retErr error) {
 	ex.incrementStartedStmtCounter(stmt)
 	defer func() {
@@ -217,6 +217,17 @@ func (ex *connExecutor) execStmtInOpenState(
 	makeErrEvent := func(err error) (fsm.Event, fsm.EventPayload, error) {
 		ev, payload := ex.makeErrEvent(err, stmt.AST)
 		return ev, payload, nil
+	}
+
+	var pinfo *tree.PlaceholderInfo
+	if portal != nil {
+		pinfo = &tree.PlaceholderInfo{
+			PlaceholderTypesInfo: tree.PlaceholderTypesInfo{
+				TypeHints: portal.Stmt.TypeHints,
+				Types:     portal.Stmt.Types,
+			},
+			Values: portal.Qargs,
+		}
 	}
 
 	var discardRows bool
