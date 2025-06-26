@@ -5,7 +5,7 @@
   "repository": "github.com/cockroachdb/cockroach",
   "license": "MIT",
   "dependencies": {
-    "analytics-node": "^3.3.0",
+    "analytics-node": "^3.5.0",
     "babel-polyfill": "^6.26.0",
     "classnames": "^2.2.5",
     "combokeys": "^2.4.6",
@@ -17,7 +17,7 @@
     "raw-loader": "^0.5.1",
     "rc-progress": "^2.2.1",
     "react": "^16.3.1",
-    "react-addons-create-fragment": "^15.4.2",
+    "react-addons-create-fragment": "^15.5.4",
     "react-copy-to-clipboard": "^5.0.1",
     "react-dom": "16.4.2",
     "react-helmet": "^5.2.0",
